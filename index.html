@@ -15,6 +15,31 @@
         padding: 10px 20px;
         margin: 10px;
         font-size: 16px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      #status,
+      #nftStatus {
+        margin-top: 20px;
+        font-size: 18px;
+        color: #333;
+      }
+      #nftDisplay {
+        margin-top: 30px;
+      }
+      input[type="number"] {
+        padding: 8px;
+        font-size: 16px;
+        width: 200px;
+      }
+      img {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
       }
     </style>
   </head>
@@ -23,556 +48,66 @@
 
     <button id="connectButton">Connect MetaMask</button>
     <button id="mintButton" disabled>Mint ERC721 Token</button>
-    <button id="balanceOfButton">Get balance</button>
+    <button id="balanceOfButton" disabled>Get Balance</button>
 
     <p id="status"></p>
 
+    <!-- NFT Display Section -->
+    <h2>View Your NFT</h2>
+    <input
+      type="number"
+      id="tokenIdInput"
+      placeholder="Enter Token ID"
+      min="0"
+    />
+    <button id="viewNFTButton" disabled>View NFT</button>
+    <div id="nftDisplay">
+      <img
+        id="nftImage"
+        src=""
+        alt="NFT Image"
+        style="max-width: 300px; display: none"
+      />
+      <p id="nftStatus"></p>
+    </div>
+
     <script>
-      // Replace with your contract's ABI
-      const contractABI = [
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "approve",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "initialOwner",
-              type: "address",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "constructor",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "sender",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-          ],
-          name: "ERC721IncorrectOwner",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "operator",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "ERC721InsufficientApproval",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "approver",
-              type: "address",
-            },
-          ],
-          name: "ERC721InvalidApprover",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "operator",
-              type: "address",
-            },
-          ],
-          name: "ERC721InvalidOperator",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-          ],
-          name: "ERC721InvalidOwner",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "receiver",
-              type: "address",
-            },
-          ],
-          name: "ERC721InvalidReceiver",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "sender",
-              type: "address",
-            },
-          ],
-          name: "ERC721InvalidSender",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "ERC721NonexistentToken",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-          ],
-          name: "OwnableInvalidOwner",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "account",
-              type: "address",
-            },
-          ],
-          name: "OwnableUnauthorizedAccount",
-          type: "error",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "approved",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "Approval",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "operator",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "bool",
-              name: "approved",
-              type: "bool",
-            },
-          ],
-          name: "ApprovalForAll",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "previousOwner",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "newOwner",
-              type: "address",
-            },
-          ],
-          name: "OwnershipTransferred",
-          type: "event",
-        },
-        {
-          inputs: [],
-          name: "renounceOwnership",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-          ],
-          name: "safeMint",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "safeTransferFrom",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-            {
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
-            },
-          ],
-          name: "safeTransferFrom",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "operator",
-              type: "address",
-            },
-            {
-              internalType: "bool",
-              name: "approved",
-              type: "bool",
-            },
-          ],
-          name: "setApprovalForAll",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "Transfer",
-          type: "event",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "transferFrom",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "newOwner",
-              type: "address",
-            },
-          ],
-          name: "transferOwnership",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-          ],
-          name: "balanceOf",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "getApproved",
-          outputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "operator",
-              type: "address",
-            },
-          ],
-          name: "isApprovedForAll",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "name",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "owner",
-          outputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "ownerOf",
-          outputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "bytes4",
-              name: "interfaceId",
-              type: "bytes4",
-            },
-          ],
-          name: "supportsInterface",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "symbol",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          name: "tokenURI",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-      ];
-
-      // Replace with your contract's address
-      const contractAddress = "0x94C126EC858c5e4ada49863b0f3D1c01a87cab72";
-
       let web3;
       let contract;
       let userAccount;
 
       const connectButton = document.getElementById("connectButton");
       const mintButton = document.getElementById("mintButton");
+      const balanceOfButton = document.getElementById("balanceOfButton");
+      const viewNFTButton = document.getElementById("viewNFTButton");
       const status = document.getElementById("status");
+      const nftStatus = document.getElementById("nftStatus");
+      const nftImage = document.getElementById("nftImage");
+
+      // Function to fetch ABI from external JSON file
+      async function fetchABI() {
+        try {
+          const response = await fetch("abi.json");
+          if (!response.ok) {
+            throw new Error("Failed to fetch ABI");
+          }
+          const abi = await response.json();
+          return abi;
+        } catch (error) {
+          console.error("Error fetching ABI:", error);
+          status.innerText =
+            "Failed to load contract ABI. Check console for details.";
+          throw error;
+        }
+      }
+
+      // Function to initialize the contract
+      async function initializeContract() {
+        const abi = await fetchABI();
+        // Replace with your contract's address
+        const contractAddress = "0xF578860899af3E44150c844B6740010f30F5810d";
+        contract = new web3.eth.Contract(abi, contractAddress);
+      }
 
       // Function to connect MetaMask
       async function connectMetaMask() {
@@ -584,9 +119,11 @@
             });
             userAccount = accounts[0];
             web3 = new Web3(window.ethereum);
-            contract = new web3.eth.Contract(contractABI, contractAddress);
+            await initializeContract();
             status.innerText = `Connected account: ${userAccount}`;
             mintButton.disabled = false;
+            balanceOfButton.disabled = false;
+            viewNFTButton.disabled = false;
           } catch (error) {
             console.error("User denied account access", error);
             status.innerText = "Connection to MetaMask denied.";
@@ -598,7 +135,7 @@
         }
       }
 
-      // Function to mint ERC721 token
+      // Function to get token balance
       async function getBalance() {
         if (!contract) {
           status.innerText = "Smart contract not loaded.";
@@ -607,15 +144,12 @@
 
         try {
           status.innerText = "Fetching balance...";
-
-          // Call the balanceOf function of the smart contract
           const balance = await contract.methods.balanceOf(userAccount).call();
           console.log("Balance:", balance);
-
           status.innerText = `Balance: ${balance}`;
         } catch (error) {
-          console.error("Error minting token:", error);
-          status.innerText = "Error minting token. See console for details.";
+          console.error("Error fetching balance:", error);
+          status.innerText = "Error fetching balance. See console for details.";
         }
       }
 
@@ -668,10 +202,68 @@
         }
       }
 
+      // Function to view NFT by Token ID
+      async function viewNFT() {
+        const tokenIdInput = document.getElementById("tokenIdInput");
+        const tokenId = tokenIdInput.value.trim();
+
+        if (!tokenId) {
+          nftStatus.innerText = "Please enter a valid Token ID.";
+          nftImage.style.display = "none";
+          return;
+        }
+
+        if (!contract) {
+          nftStatus.innerText = "Smart contract not loaded.";
+          nftImage.style.display = "none";
+          return;
+        }
+
+        try {
+          nftStatus.innerText = "Fetching token URI...";
+          // Call the tokenURI function of the smart contract
+          const tokenURI = await contract.methods.tokenURI(tokenId).call();
+          console.log("Token URI:", tokenURI);
+
+          if (!tokenURI) {
+            nftStatus.innerText = "Token URI not found.";
+            nftImage.style.display = "none";
+            return;
+          }
+
+          // Fetch the token metadata from the tokenURI
+          nftStatus.innerText = "Fetching NFT metadata...";
+          const metadataResponse = await fetch(tokenURI);
+          if (!metadataResponse.ok) {
+            throw new Error("Failed to fetch token metadata.");
+          }
+          const metadata = await metadataResponse.json();
+          console.log("Metadata:", metadata);
+
+          // Assuming the metadata contains an "image" field with the image URL
+          const imageURL = metadata.image;
+          if (!imageURL) {
+            nftStatus.innerText = "Image URL not found in metadata.";
+            nftImage.style.display = "none";
+            return;
+          }
+
+          // Display the image
+          nftImage.src = imageURL;
+          nftImage.style.display = "block";
+          nftStatus.innerText = `NFT Token ID: ${tokenId}`;
+        } catch (error) {
+          console.error("Error fetching NFT:", error);
+          nftStatus.innerText = "Error fetching NFT. See console for details.";
+          nftImage.style.display = "none";
+        }
+      }
+
       // Event listeners
       connectButton.addEventListener("click", connectMetaMask);
       mintButton.addEventListener("click", mintToken);
       balanceOfButton.addEventListener("click", getBalance);
+      viewNFTButton.addEventListener("click", viewNFT);
     </script>
   </body>
 </html>
