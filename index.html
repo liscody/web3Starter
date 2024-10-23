@@ -40,6 +40,7 @@
         border: 1px solid #ddd;
         border-radius: 4px;
         padding: 5px;
+        max-width: 300px;
       }
     </style>
   </head>
@@ -62,12 +63,7 @@
     />
     <button id="viewNFTButton" disabled>View NFT</button>
     <div id="nftDisplay">
-      <img
-        id="nftImage"
-        src=""
-        alt="NFT Image"
-        style="max-width: 300px; display: none"
-      />
+      <img id="nftImage" src="" alt="NFT Image" style="display: none" />
       <p id="nftStatus"></p>
     </div>
 
@@ -83,6 +79,20 @@
       const status = document.getElementById("status");
       const nftStatus = document.getElementById("nftStatus");
       const nftImage = document.getElementById("nftImage");
+
+      // Helper function to convert IPFS URL to HTTP(S) URL
+      function convertIPFSToHTTP(ipfsURL) {
+        if (ipfsURL.startsWith("ipfs://")) {
+          const ipfsHash = ipfsURL.replace("ipfs://", "");
+          return `https://ipfs.io/ipfs/${ipfsHash}`;
+        } else if (ipfsURL.startsWith("ipfs/")) {
+          // Handle URLs like "ipfs/Qm.../file.json"
+          const ipfsHash = ipfsURL.replace("ipfs/", "");
+          return `https://ipfs.io/ipfs/${ipfsHash}`;
+        }
+        // If the URL is already HTTP(S), return as is
+        return ipfsURL;
+      }
 
       // Function to fetch ABI from external JSON file
       async function fetchABI() {
@@ -186,7 +196,7 @@
             from: userAccount,
             gasPrice: increasedGasPrice.toString(),
             // Optionally, you can also set a higher gas limit if needed
-            // gas: 500000, // Example: setting gas limit to 500,000
+            gas: 500000, // Example: setting gas limit to 500,000
           });
 
           console.log("Transaction receipt:", receipt);
@@ -222,14 +232,18 @@
         try {
           nftStatus.innerText = "Fetching token URI...";
           // Call the tokenURI function of the smart contract
-          const tokenURI = await contract.methods.tokenURI(tokenId).call();
-          console.log("Token URI:", tokenURI);
+          let tokenURI = await contract.methods.tokenURI(tokenId).call();
+          console.log("Original Token URI:", tokenURI);
 
           if (!tokenURI) {
             nftStatus.innerText = "Token URI not found.";
             nftImage.style.display = "none";
             return;
           }
+
+          // Convert IPFS URL to HTTP(S) URL if necessary
+          tokenURI = convertIPFSToHTTP(tokenURI);
+          console.log("Converted Token URI:", tokenURI);
 
           // Fetch the token metadata from the tokenURI
           nftStatus.innerText = "Fetching NFT metadata...";
@@ -241,12 +255,16 @@
           console.log("Metadata:", metadata);
 
           // Assuming the metadata contains an "image" field with the image URL
-          const imageURL = metadata.image;
+          let imageURL = metadata.image;
           if (!imageURL) {
             nftStatus.innerText = "Image URL not found in metadata.";
             nftImage.style.display = "none";
             return;
           }
+
+          // Convert IPFS image URL to HTTP(S) URL if necessary
+          imageURL = convertIPFSToHTTP(imageURL);
+          console.log("Converted Image URL:", imageURL);
 
           // Display the image
           nftImage.src = imageURL;
