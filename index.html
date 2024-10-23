@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mint NFT</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+  </head>
+  <body>
+    <h1>Mint NFT</h1>
+
+    <button id="connectButton">Connect Wallet</button>
+    <button id="mintButton" disabled>Mint NFT</button>
+    <button id="testButton">Test MetaMask Connection</button>
+    
+    <script>
+      let web3;
+      let contract;
+      let userAccount;
+
+      const contractAddress = "0x94C126EC858c5e4ada49863b0f3D1c01a87cab72";
+      const abi = [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+          ],
+          name: "safeMint",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ];
+
+      document
+        .getElementById("testButton")
+        .addEventListener("click", async () => {
+          if (typeof window.ethereum !== "undefined") {
+            try {
+              const accounts = await window.ethereum.request({
+                method: "eth_requestAccounts",
+              });
+              alert(`Connected account: ${accounts[0]}`);
+            } catch (error) {
+              console.error("Error connecting to MetaMask:", error);
+            }
+          } else {
+            alert("MetaMask is not installed!");
+          }
+        });
+
+      // Function to initialize web3 and contract instance
+      async function initializeWeb3() {
+        try {
+          web3 = new Web3(window.ethereum);
+          contract = new web3.eth.Contract(abi, contractAddress);
+        } catch (error) {
+          console.error("Failed to initialize web3:", error);
+          alert("Failed to initialize Web3. Please try again.");
+        }
+      }
+
+      // Connect Wallet Button
+      document
+        .getElementById("connectButton")
+        .addEventListener("click", async () => {
+          if (window.ethereum) {
+            try {
+              const accounts = await window.ethereum.request({
+                method: "eth_requestAccounts",
+              });
+              userAccount = accounts[0];
+              console.log("Connected account:", userAccount);
+
+              await initializeWeb3();
+
+              // Enable the mint button after connecting
+              document.getElementById("mintButton").disabled = false;
+            } catch (error) {
+              console.error("User denied account access:", error);
+              alert("Please connect to MetaMask to continue.");
+            }
+          } else {
+            alert("Please install MetaMask!");
+          }
+        });
+
+      // Mint NFT Button
+      document
+        .getElementById("mintButton")
+        .addEventListener("click", async () => {
+          try {
+            // Estimate gas dynamically
+            const estimatedGas = await contract.methods
+              .safeMint(userAccount)
+              .estimateGas({ from: userAccount });
+
+            const gasPrice = await web3.eth.getGasPrice();
+            const nonce = await web3.eth.getTransactionCount(
+              userAccount,
+              "latest"
+            );
+
+            const tx = {
+              from: userAccount,
+              to: contractAddress,
+              nonce: nonce,
+              gas: estimatedGas, // Use estimated gas
+              gasPrice: gasPrice,
+              data: contract.methods.safeMint(userAccount).encodeABI(),
+            };
+
+            console.log("Sending transaction:", tx);
+
+            // Trigger MetaMask prompt
+            const txHash = await window.ethereum.request({
+              method: "eth_sendTransaction",
+              params: [tx],
+            });
+
+            console.log("Transaction hash:", txHash);
+            alert(`Transaction sent! Hash: ${txHash}`);
+          } catch (error) {
+            console.error("An error occurred:", error);
+
+            // Improved error handling with better alerts
+            if (error.code === 4001) {
+              alert("Transaction rejected by user.");
+            } else if (error.message.includes("insufficient funds")) {
+              alert("Insufficient funds for gas.");
+            } else {
+              alert("Transaction failed! Check the console for details.");
+            }
+          }
+        });
+
+      // Optional: Detect MetaMask account changes
+      if (window.ethereum) {
+        window.ethereum.on("accountsChanged", (accounts) => {
+          if (accounts.length === 0) {
+            alert("Please connect to MetaMask.");
+            document.getElementById("mintButton").disabled = true;
+          } else {
+            userAccount = accounts[0];
+            console.log("Account changed:", userAccount);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
